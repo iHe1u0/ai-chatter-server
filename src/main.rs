@@ -1,16 +1,11 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::form::Form;
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::response::content;
 use std::borrow::Cow;
 
-#[derive(Debug, Serialize, Deserialize, FromForm)]
-struct User<'a> {
-    id: usize,
-    email: &'a str,
-    password: &'a str,
-}
+use rocket::{response::content::RawJson, serde::json::Json};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LoginResponse<'a> {
@@ -43,7 +38,31 @@ fn login<'a>(email: &'a str, password: &'a str) -> Json<LoginResponse<'a>> {
     Json(response)
 }
 
+#[get("/")]
+fn ping() -> RawJson<String> {
+    let time = chrono::Utc::now();
+
+    let mut sys = sysinfo::System::new_all();
+    sys.refresh_all();
+
+    let result_json = format!(
+        r#"{{
+        "cpu": "{:.2}%",
+        "used_memory": "{:.2} MB",
+        "total_memory": "{:.2} MB",
+        "status": "ok"
+        }}"#,
+        sys.global_cpu_usage(),
+        sys.used_memory() as f32 / 1024.0 / 1024.0,
+        sys.total_memory() as f32 / 1024.0 / 1024.0
+    );
+    content::RawJson(result_json)
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![login])
+    rocket::build()
+        .mount("/", routes![ping])
+        .mount("/ping", routes![ping])
+        .mount("/", routes![login])
 }
