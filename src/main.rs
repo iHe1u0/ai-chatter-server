@@ -1,37 +1,34 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::response::content;
+mod user;
+mod response;
+
 use std::borrow::Cow;
 
+use crate::response::Response;
+use crate::user::User;
+use rocket::serde::json::{json, Value};
 use rocket::{response::content::RawJson, serde::json::Json};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct LoginResponse<'a> {
-    code: usize,
-    msg: Cow<'a, str>,
-}
-
-// #[post("/login", data = "<info>")]
-// fn login(info: Form<User<'_>>) -> Json<LoginResponse<'_>> {
-#[get("/login?<email>&<password>")]
-fn login<'a>(email: &'a str, password: &'a str) -> Json<LoginResponse<'a>> {
-    let admin = User {
-        id: 0,
-        email: "admin",
-        password: "123",
+#[post("/login", format = "json", data = "<user>")]
+fn login(user: Json<User>) -> Json<Response<'static>> {
+    // 直接使用从表单中提取的 User 实例
+    let user = User {
+        id: None,
+        account: user.account.clone(),
+        password: user.password.clone(),
+        exist: None,
     };
-
-    let response = if email == admin.email && password == admin.password {
-        LoginResponse {
+    let response = if user.validate() {
+        Response {
             code: 0,
             msg: Cow::Borrowed("Authenticated"),
         }
     } else {
-        LoginResponse {
+        Response {
             code: 401,
-            msg: Cow::Borrowed("Authenticate Failed"),
+            msg: Cow::Borrowed("Authentication Failed"),
         }
     };
 
@@ -40,6 +37,9 @@ fn login<'a>(email: &'a str, password: &'a str) -> Json<LoginResponse<'a>> {
 
 #[get("/")]
 fn ping() -> RawJson<String> {
+    let admin = User::new(0, String::from("admin"), String::from("123"), true);
+    admin.validate();
+
     let time = chrono::Utc::now();
 
     let mut sys = sysinfo::System::new_all();
@@ -47,22 +47,29 @@ fn ping() -> RawJson<String> {
 
     let result_json = format!(
         r#"{{
+        "time":"{}",
         "cpu": "{:.2}%",
         "used_memory": "{:.2} MB",
         "total_memory": "{:.2} MB",
         "status": "ok"
         }}"#,
+        time.to_string(),
         sys.global_cpu_usage(),
         sys.used_memory() as f32 / 1024.0 / 1024.0,
         sys.total_memory() as f32 / 1024.0 / 1024.0
     );
-    content::RawJson(result_json)
+    RawJson(result_json)
+}
+
+#[catch(404)]
+fn not_found() -> Value {
+    json!({
+        "status": "error",
+        "reason": "Resource was not found."
+    })
 }
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .mount("/", routes![ping])
-        .mount("/ping", routes![ping])
-        .mount("/", routes![login])
+    rocket::build().mount("/", routes![ping,login]).register("/", catchers![not_found])
 }
