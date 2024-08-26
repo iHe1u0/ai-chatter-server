@@ -1,15 +1,14 @@
 #[macro_use]
 extern crate rocket;
 
-mod user;
-mod response;
-
 use std::borrow::Cow;
 
-use crate::response::Response;
-use crate::user::User;
+use model::response::Response;
+use model::user::User;
 use rocket::serde::json::{json, Value};
 use rocket::{response::content::RawJson, serde::json::Json};
+
+pub mod model;
 
 #[post("/login", format = "json", data = "<user>")]
 fn login(user: Json<User>) -> Json<Response<'static>> {
@@ -71,5 +70,5 @@ fn not_found() -> Value {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![ping,login]).register("/", catchers![not_found])
+    rocket::build().mount("/", routes![ping, login]).register("/", catchers![not_found])
 }

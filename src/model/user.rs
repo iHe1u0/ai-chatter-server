@@ -20,7 +20,7 @@ pub struct User {
     pub password: String,
 
     /// 用户是否存在的标志，用于标识用户状态。
-    pub exist: Option<bool>
+    pub exist: Option<bool>,
 }
 
 /// 用户结构体的实现部分
@@ -45,7 +45,12 @@ impl User {
     /// ```
     pub fn new(id: usize, account: String, password: String, exist: bool) -> User {
         // 使用给定的 id、account、password 和 exist 值创建一个 User 实例
-        User { id: Some(id), account, password, exist: Some(exist) }
+        User {
+            id: Some(id),
+            account,
+            password,
+            exist: Some(exist),
+        }
     }
 
     pub fn validate(&self) -> bool {
@@ -53,10 +58,10 @@ impl User {
 
         // 建立数据库连接
         let pool = Pool::new(database_url).expect("Failed to create a connection pool.");
-        let mut conn = pool.get_conn().expect("Failed to get a connection from the pool.");
+        let mut conn = pool
+            .get_conn()
+            .expect("Failed to get a connection from the pool.");
         // 执行查询
-        // let selected_data: Vec<(usize, String, String, i8)> = conn.query("SELECT * FROM user").expect("Query failed.");
-
         let res = conn.exec_first(
             "SELECT id, account, password, exist FROM user WHERE account = :account AND password = :password",
             params! {
