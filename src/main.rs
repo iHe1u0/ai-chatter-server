@@ -36,9 +36,6 @@ fn login(user: Json<User>) -> Json<Response<'static>> {
 
 #[get("/")]
 fn ping() -> RawJson<String> {
-    let admin = User::new(0, String::from("admin"), String::from("123"), true);
-    admin.validate();
-
     let time = chrono::Utc::now();
 
     let mut sys = sysinfo::System::new_all();
